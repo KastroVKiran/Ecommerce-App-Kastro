@@ -1,30 +1,30 @@
 # Use Maven-based image for building
 FROM maven:3.8.7-eclipse-temurin-17 AS builder
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /usr/src/app
 
-# Copy the pom.xml and download dependencies (optimizing cache usage)
+# Copy the pom.xml and fetch dependencies
 COPY pom.xml ./
 RUN mvn dependency:go-offline -B
 
-# Copy the source code
+# Copy source code
 COPY src ./src
 
-# Build the project
+# Build the WAR file
 RUN mvn clean package -DskipTests
 
-# Use a clean JDK image for the final container
-FROM eclipse-temurin:17-jdk
+# Use Tomcat image for deployment
+FROM tomcat:9.0
 
-# Set the working directory in the container
-WORKDIR /usr/src/app
+# Set working directory
+WORKDIR /usr/local/tomcat/webapps/
 
-# Copy the compiled JAR file from the builder stage
-COPY --from=builder /usr/src/app/target/*.jar /usr/src/app/app.jar
+# Copy the WAR file from the builder stage
+COPY --from=builder /usr/src/app/target/*.war /usr/local/tomcat/webapps/ecommerce.war
 
-# Expose the port your app is running on
+# Expose Tomcat's default port
 EXPOSE 8080
 
-# Command to run the application
-CMD ["java", "-jar", "/usr/src/app/app.jar"]
+# Start Tomcat
+CMD ["catalina.sh", "run"]
