@@ -1,5 +1,5 @@
-# Use Eclipse Temurin as the base image for Java 17
-FROM eclipse-temurin:17-jdk as builder
+# Use Eclipse Temurin as the base image for Java 17 with Maven
+FROM eclipse-temurin:17-jdk AS builder
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -8,21 +8,20 @@ WORKDIR /usr/src/app
 COPY pom.xml ./
 COPY src ./src
 
-# Install Maven and build the project
-RUN apt-get update && apt-get install -y maven
+# Build the project
 RUN mvn clean package -DskipTests
 
-# Use a clean image for the final container
+# Use a clean image for the final container (without unnecessary build tools)
 FROM eclipse-temurin:17-jdk
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
 # Copy the compiled JAR file from the builder stage
-COPY --from=builder /usr/src/app/target/*.jar /usr/src/app/app.jar
+COPY --from=builder /usr/src/app/target/*.jar /usr/src/app/
 
-# Expose the port the app will run on
+# Expose the port your app is running on
 EXPOSE 8080
 
-# Set the command to run the app
-CMD ["java", "-jar", "app.jar"]
+# Command to run the application
+CMD ["java", "-jar", "/usr/src/app/*.jar"]
