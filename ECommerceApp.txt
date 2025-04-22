@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 										E-Commerce App Deployment
-													by
-											KASTRO KIRAN V
+											by
+										   KASTRO KIRAN V
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -----------
 Step 1
@@ -59,8 +59,8 @@ A total of 7 policies we have attached to the IAM User created in 1.3.1.
 Open the user created ----> Security Credentials tab ----> Create access key ----> Use case: CLI ----> Next ----> Create Keys ----> Download the csv file
 
 Now we have created the IAM User with appropriate permissions to create the EKS Cluster
-AKIA3FLD6HKOAEPJZJLE
-tO1+WEu+tBurLZ1kc0i6a7fht+ZClGfKfo2XWIDE
+AKIA6G75DMYKLKKW364G
+YNvoMvkeA7uIiNmuw6C5YyLREpi2b1DlAozQWYU3
 =============================
 1.4. Creation of EKS Cluster 
 =============================
@@ -100,8 +100,8 @@ eksctl version
 Execute the below commands as separate set
 (a)
 eksctl create cluster --name=kastro-eks \
-                      --region=ap-northeast-3 \
-                      --zones=ap-northeast-3a,ap-northeast-3b \
+                      --region=us-east-1 \
+                      --zones=us-east-1a,us-east-1b \
                       --version=1.30 \
                       --without-nodegroup
 
@@ -110,7 +110,7 @@ Goto EKS Console and verify the cluster.
 
 (b)
 eksctl utils associate-iam-oidc-provider \
-    --region ap-northeast-3 \
+    --region us-east-1 \
     --cluster kastro-eks \
     --approve
 
@@ -124,7 +124,7 @@ Without it, these services will not be able to access AWS resources securely.
 Before executing the below command, in the 'ssh-public-key' keep the  '<PEM FILE NAME>' (dont give .pem. Just give the pem file name) which was used to create Jenkins Server
 
 eksctl create nodegroup --cluster=kastro-eks \
-                       --region=ap-northeast-3 \
+                       --region=us-east-1 \
                        --name=node2 \
                        --node-type=t3.medium \
                        --nodes=3 \
@@ -132,7 +132,7 @@ eksctl create nodegroup --cluster=kastro-eks \
                        --nodes-max=4 \
                        --node-volume-size=20 \
                        --ssh-access \
-                       --ssh-public-key=Osaka \
+                       --ssh-public-key=ecommerce \
                        --managed \
                        --asg-access \
                        --external-dns-access \
@@ -341,14 +341,14 @@ Eclipse Temurin Installer, SonarQube scanner, Docker, Docker Commons, Docker Pip
 =============================
 3.2. Tool Configuration
 =============================
-Goto the Jenkins console (since we restarted, login again to Jenkins) ---> Manage Jenkins ---> System Configuration ---> Tools ---> JDK Installation ---> Add JDK ---> Name: jdk17, 'Check' Install automatically, Click on 'Add Installer', Select 'Install from Adoptium.net', Version: jdk-17.0.11+9 ---> SonarQube Scanner Installations ---> Add 'SonarQube Scanner' ---> Name: sonar-scanner, 'Check' Install automatically, Version: Select the latest version 7.0.0.4796 ---> Maven Installations ---> Add Maven ---> Name: maven, Version: 3.6.3 ---> Docker Installations ---> Add Docker---> Name: docker, 'Check' Install automatically,  Click on 'Add Installer', Select 'Download from docker.com', Version: latest ---> Apply ---> Save
+Goto the Jenkins console (since we restarted, login again to Jenkins) ---> Manage Jenkins ---> System Configuration ---> Tools ---> JDK Installation ---> Add JDK ---> Name: jdk17, 'Check' Install automatically, Click on 'Add Installer', Select 'Install from Adoptium.net', Version: jdk-17.0.11+9 ---> SonarQube Scanner Installations ---> Add 'SonarQube Scanner' ---> Name: sonar-scanner, 'Check' Install automatically, Version: Select the latest version 7.0.0.4796 ---> Maven Installations ---> Add Maven ---> Name: maven, Version: 3.9.9 ---> Docker Installations ---> Add Docker---> Name: docker, 'Check' Install automatically,  Click on 'Add Installer', Select 'Download from docker.com', Version: latest ---> Apply ---> Save
 
 ==========================================
 3.3. System Configuration in Jenkins for SonarQube
 ==========================================
 Lets configure the SonarQube server;
 Goto SonarQube console --- Click on 'Administration' --- Click on 'Security' --- Select 'Users' --- You can see 'Tokens' --- Click on 3 dashes icon --- A New dialogue --- Name: token, Expires in: 90days --- Generate --- You can see token in green colour. Copy it. 
-Token: squ_da60166d48de33801d5cd07b519fdf42705e4cd6
+Token: squ_dcc638876ea585af501be08adbb861667932da03
 
 Manage Jenkins --- Security --- Credentials --- Click on 'global' --- Click on 'Add Credentials' --- Kind: Secret text, Scope: Global, Secret: <Paste the token copied from SonarQube console>, ID: sonar-token, Description: sonar-token --- Create
 
@@ -402,7 +402,7 @@ Lets create a mail notification;
 ==============================
 Goto Gmail ---> Click on Icon on top right ---> Click on 'Your google account' ---> 'Security' (left pane) --->Make sure 2 step verification is on.
 
-Goto Gmail ---> Click on Icon on top right ---> Click on 'Your google account' ---> in search box at top, search for 'App  Passwords' and click on it, Enter password of gmail ---> Next ---> App name: jenkins ---> Create ---> You can see the password (ex: ryombgsdlprqxoje) ---> Copy it ---> Make sure to remove the spaces in the password. Lets configure this password in Jenkins.
+Goto Gmail ---> Click on Icon on top right ---> Click on 'Your google account' ---> in search box at top, search for 'App  Passwords' and click on it, Enter password of gmail ---> Next ---> App name: jenkins ---> Create ---> You can see the password (ex: sbksmfpgvycqibug) ---> Copy it ---> Make sure to remove the spaces in the password. Lets configure this password in Jenkins.
 
 Manage Jenkins ---> System ---> Scroll down to 'Email Notification' ---> SMTP Server: smtp.gmail.com ---> Click on 'Advanced'  ---> 'Check' Use SMTP Authentication, Username: <ProvideEmailID>, Password: <PasteThePasswordToken>, 'Check' Use SSL, SMTP Port: 465, Reply-to-email: <ProvideEmail>, Charset: UTF-8,, Check 'Test configuration by sending test e-mail', Test Email Recepient: <provide-email-id>, Click on 'Test Configuration' ---> You can see 'email sent' ---> Goto email and check for test email
 
@@ -417,6 +417,8 @@ Lets* make another configuration to get an email when build fails/success ---> G
 =============================
 3.6. Job Creation
 =============================
+Goto MobaXTerm Terminal ---> Login to DockerHub ---> docker login -u <DockerHubUserName> ---> Click Enter ---> Enter the password of DockerHub
+
 Create a pipeline job
 ______________________________
 Pipeline Script (without K8S Stage)
@@ -441,13 +443,13 @@ pipeline {
             }
         }
 
-        stage('Compile') {
+        stage('Maven Compile') {
             steps {
                 sh "mvn compile"
             }
         }
 
-        stage('Test') {
+        stage('Maven Test') {
             steps {
                 sh "mvn test -DskipTests=true"
             }
@@ -472,7 +474,7 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Maven Build') {
             steps {
                 sh "mvn package -DskipTests=true"
             }
@@ -489,7 +491,7 @@ pipeline {
         stage('Docker Build & Tag') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         sh "docker build -t ${DOCKER_IMAGE} ."
                     }
                 }
@@ -506,7 +508,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         sh "docker push ${DOCKER_IMAGE}"
                     }
                 }
@@ -562,7 +564,6 @@ pipeline {
 ---------------------------------------
 Deploying to EKS Cluster
 ---------------------------------------
-
 
 =============================
 5 Create Service Account, Role & Assign that role, And create a secret for Service Account and generate a Token
@@ -652,7 +653,7 @@ metadata:
 --- esc --- :wq --- kubectl create apply -f secret.yml -n <NameSpaceName i.e webapps> (MODIFIED COMMAND FOR DEVOPS EXAM APP: kubectl apply -f secret.yml -n webapps) --- Now the secret will get created inside the namespace --- To get the token --- kubectl describe secret <SecretName i.e mysecretname> -n <NameSpaceName i.e webapps> (MODIFIED COMMAND FOR DEVOPS EXAM APP: kubectl describe secret mysecretname -n webapps) --- You can see the token. Copy and paste in notepad
 We will configure this in Jenkins in sometime
 
-eyJhbGciOiJSUzI1NiIsImtpZCI6IkpEUlR3YmtVekdrMVhmRnUyNXBhejdkcS12OENCaGZBYTZBN2YtVTZ4SWMifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJ3ZWJhcHBzIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Im15c2VjcmV0bmFtZSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJqZW5raW5zIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiOWM3OWExMTUtNWQ4Mi00OWQyLTlhY2YtYWFjNGM2OTU4NmE4Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OndlYmFwcHM6amVua2lucyJ9.YNgJ26edGSpEaYt4MPjNOCwCaOKext3G_TJmbYutUDSMRqU5tf4kPdKF_QrIdf0bExZoYKbXzRjZzeMinPIlOg06z4NU8RJTLAuBp2guOrFKwNk2zlgdixvm_wUDDT8xGMNGiMuZTO8nRj8oD8PtOXccNpdzMXqB0GnwnKrf16r0ZPhAchvberF9hcglnmLNQFBUUf1bC9DjKtN7HZS7YedgLzkzly85Xg0ekmLBwSkalzoaogpaAAfdwZqkeY0c7otE5QD0JjgPoKvlYuxoUtol_RFAbLmM529Jg5H9GNh3m49c8fFDGvrjbMT4QXm69arGe1B6dJghy25NZMCR-Q
+eyJhbGciOiJSUzI1NiIsImtpZCI6IkNxMkxsR3VNTVlsSGhNRHd2T1F1X1N1eUxOVnJfODdmZHVHZ0E2WHRmdjAifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJ3ZWJhcHBzIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Im15c2VjcmV0bmFtZSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJqZW5raW5zIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiYjAxNmFmZjctOGE1OC00ZDEyLTlhYjEtY2EwYjcxMzQzYzc1Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OndlYmFwcHM6amVua2lucyJ9.worPaZdFJfeswDgIghIngEjeiZ2x2V9yFQc9qLG3yyJRh5ZOnt3WiHeQkP_wfbLd5vt5r-WIsEA3BjFDI8KMaxgOa9lmrGa9jYQjaEyCw-oErDUz1Xh87Iby_OG1bkmij-sTU4GKXLyoavw5dEr5FLY0iAv2aoAzaUchb-MVoTmxWrTQa3RcVGeraOWIWkv-jP1bq-4eFGAeBm_1HG5KakWJ5Y7gnpNGn6RWAowh_9p0R-VMsirmSmeZ19_-FAdBg0zgjaHtcm317P5wUVMNNT3zxoWL9NN7_VAPFAIgW2SLKID45ww6bfEWiaFNaZETizKfZjhRW5rhS8sIevJe9g
 
 Lets create CD pipeline
 Dashboard --- Manage Jenkins --- Security --- Credentials --- Global credentials (unrestricted) --- Kind: secret text --- Scope: global --- Secret: Paste the token generated above --- ID: k8-token, Decription: k8-token --- Create
@@ -682,13 +683,13 @@ pipeline {
             }
         }
 
-        stage('Compile') {
+        stage('Maven Compile') {
             steps {
                 sh "mvn compile"
             }
         }
 
-        stage('Test') {
+        stage('Maven Test') {
             steps {
                 sh "mvn test -DskipTests=true"
             }
@@ -713,7 +714,7 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Maven Build') {
             steps {
                 sh "mvn package -DskipTests=true"
             }
@@ -730,7 +731,7 @@ pipeline {
         stage('Docker Build & Tag') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         sh "docker build -t ${DOCKER_IMAGE} ."
                     }
                 }
@@ -747,7 +748,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         sh "docker push ${DOCKER_IMAGE}"
                     }
                 }
@@ -763,9 +764,10 @@ pipeline {
             }
         }
 
+        // ✅ These two stages were outside of "stages" block before. Moved inside.
         stage('Deploy To Kubernetes') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://46554B7DB92D006C51D74C3BF7A32464.sk1.us-west-1.eks.amazonaws.com') {
+                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
                     sh "kubectl apply -f deployment-service.yaml -n webapps"
                 }
             }
@@ -773,13 +775,13 @@ pipeline {
 
         stage('Verify the Deployment') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://46554B7DB92D006C51D74C3BF7A32464.sk1.us-west-1.eks.amazonaws.com') {
+                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
                     sh "kubectl get pods -n webapps"
                     sh "kubectl get svc -n webapps"
                 }
             }
         }
-    }
+    } // ✅ Correct closing of "stages" block
 
     post {
         always {
@@ -817,8 +819,6 @@ pipeline {
     }
 }
 
-Load Balancer Provisioning Delay
-AWS ALB (Application Load Balancer) takes time to provision (typically 2-5 minutes). 
-Check:
-kubectl get svc devopsexamapp-service -n webapps -w
-Wait until you see an external DNS name assigned (it will show as <pending> initially).
+
+To access the App, we need to get the Load Balancer URL
+kuetl get all -n webapps
