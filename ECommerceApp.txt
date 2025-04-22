@@ -1,0 +1,824 @@
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+										E-Commerce App Deployment
+													by
+											KASTRO KIRAN V
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-----------
+Step 1
+-----------
+Use the same Security Group to all the instances that are going to be launched
+
+1.1. Launch 1 VM (Ubuntu, 24.04, t2.large, 20 GB, Name: Jenkins Server)
+Open below ports for the Security Group attached to the above VM
+_____________________________________________________________________________________________________________________
+Port 			| Protocol 	| Service 				| Purpose
+_____________________________________________________________________________________________________________________
+22 			| TCP 	| SSH 				| Secure shell access to servers for remote login, command execution 
+25 			| TCP 	| SMTP 				| Used for sending email between servers (outbound email)
+80 			| TCP 	| HTTP 				| Handles unencrypted web traffic; used for serving websites over the internet.
+443 			| TCP 	| HTTPS 				| Secure version of HTTP; encrypts communication between browser and server using TLS/SSL.
+465 			| TCP 	| SMTPS 				| Secure SMTP; used for sending emails securely with SSL 
+6443 		| TCP 	| Kubernetes API server 	| Used for communication with the Kubernetes control plane (kubectl, kubelets, etc.).
+3000–10000 	| TCP 	| Service Ports 			| Used for custom application services (e.g., Node.js apps often use 3000)
+30000–32767 	| TCP 	| K8S NodePort Services | Kubernetes allocates this range for exposing services via NodePort (to access a service outside the cluster).
+
+
+1.2. Launch 2 VMs (Ubuntu, 24.04, t2.medium, 20 GB, One VM Name: Nexus Server, Another VM Name: SonarQube Server)
+Attach the same security group which is used for Jenkins Server
+
+=============================
+1.3. Creation of EKS Cluster
+=============================
+1.3.1. Creation of IAM user (To create EKS Cluster, its not recommended to create using Root Account)
+IAM ----> Users ----> Create User ----> Name: eks-kastro-user, 'Check' Provide access to console, 'Check' I want to create IAM User, Custom Password ----> Next (dont attach any policies) ----> Next ----> Create user
+
+=============================
+1.3.2. Attach policies to the user 
+=============================
+Open the user created ----> 'Permissions' tab ----> In 'Add permissions' dropdown select 'Add permissions' ----> 'Check' Attach policies directly ----> AmazonEC2FullAccess, AmazonEKS_CNI_Policy, AmazonEKSClusterPolicy, AmazonEKSWorkerNodePolicy, AWSCloudFormationFullAccess, IAMFullAccess ----> Next ----> Add permissions
+
+Attach the below inline policy also for the same user
+Open the user created ----> 'Permissions' tab ----> In 'Add permissions' dropdown select 'Create Inline Policy' ----> Json ----> Remove any existing policy. Paste the below policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "eks:*",
+            "Resource": "*"
+        }
+    ]
+}
+ ----> Next ----> Policy Name: eks-inline-policy ----> Create Policy
+A total of 7 policies we have attached to the IAM User created in 1.3.1.
+
+=============================
+1.3.3. Create Access Keys
+=============================
+Open the user created ----> Security Credentials tab ----> Create access key ----> Use case: CLI ----> Next ----> Create Keys ----> Download the csv file
+
+Now we have created the IAM User with appropriate permissions to create the EKS Cluster
+AKIA3FLD6HKOAEPJZJLE
+tO1+WEu+tBurLZ1kc0i6a7fht+ZClGfKfo2XWIDE
+=============================
+1.4. Creation of EKS Cluster 
+=============================
+Connect to the 'Jenkins Server' VM
+sudo apt update
+
+==========================================
+1.4.1. Install AWS CLI (to interact with AWS Account)
+==========================================
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+sudo apt install unzip
+unzip awscliv2.zip
+sudo ./aws/install
+aws configure
+
+Configure aws
+aws configure ----> Paste the Access Key ----> Paste the Secret Access Key ----> Region: ap-south-1 ----> Output: click enter (no need to give anything)
+
+===================================
+1.4.2. Install KubeCTL (to interact with K8S)
+===================================
+curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
+kubectl version --short --client
+
+==========================================
+1.4.3. Install EKS CTL (used to create EKS Cluster) 
+==========================================
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+
+=============================
+1.4.4. Create EKS Cluster
+=============================
+Execute the below commands as separate set
+(a)
+eksctl create cluster --name=kastro-eks \
+                      --region=ap-northeast-3 \
+                      --zones=ap-northeast-3a,ap-northeast-3b \
+                      --version=1.30 \
+                      --without-nodegroup
+
+It will take 5-10 minutes to create the cluster
+Goto EKS Console and verify the cluster.
+
+(b)
+eksctl utils associate-iam-oidc-provider \
+    --region ap-northeast-3 \
+    --cluster kastro-eks \
+    --approve
+
+The above command is crucial when setting up an EKS cluster because it enables IAM roles for service accounts (IRSA)
+Amazon EKS uses OpenID Connect (OIDC) to authenticate Kubernetes service accounts with IAM roles.
+Associating the IAM OIDC provider allows Kubernetes workloads (Pods) running in the cluster to assume IAM roles securely.
+Without this, Pods in EKS clusters would require node-level IAM roles, which grant permissions to all Pods on a node.
+Without it, these services will not be able to access AWS resources securely.
+
+(c)
+Before executing the below command, in the 'ssh-public-key' keep the  '<PEM FILE NAME>' (dont give .pem. Just give the pem file name) which was used to create Jenkins Server
+
+eksctl create nodegroup --cluster=kastro-eks \
+                       --region=ap-northeast-3 \
+                       --name=node2 \
+                       --node-type=t3.medium \
+                       --nodes=3 \
+                       --nodes-min=2 \
+                       --nodes-max=4 \
+                       --node-volume-size=20 \
+                       --ssh-access \
+                       --ssh-public-key=Osaka \
+                       --managed \
+                       --asg-access \
+                       --external-dns-access \
+                       --full-ecr-access \
+                       --appmesh-access \
+                       --alb-ingress-access
+
+It will take 5-10 minutes 
+
+(d) For internal communication b/w control plane and worker nodes, we need to open one traffic in the security group of EKS Cluster
+Open the cluster created ----> 'Networking' tab ----> Under 'Additional Security Groups' you will see a link, click on that link ----> 'Inbound rules' tab ----> Edit inbound rules ----> Add rule ----> All traffic, Anywhere IPv4 ----> Save rules
+
+-----------
+Step 2
+-----------
+Lets setup Jenkins, Nexus, SonarQube in the respective servers
+
+=============================
+2.1.1 Connect to the Jenkins Server
+=============================
+vi Jenkins.sh ----> Paste the below content ---->
+#!/bin/bash
+
+# Install OpenJDK 17 JRE Headless
+sudo apt install openjdk-17-jre-headless -y
+
+# Download Jenkins GPG key
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+
+# Add Jenkins repository to package manager sources
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+# Update package manager repositories
+sudo apt-get update
+
+# Install Jenkins
+sudo apt-get install jenkins -y
+
+----> esc ----> :wq ----> sudo chmod +x Jenkins.sh ----> ./Jenkins.sh
+
+Open Port 8080 in Jenkins server
+Access Jenkins and setup Jenkins
+
+
+=============================
+2.1.2 Install Docker
+=============================
+vi docker.sh ----> Paste the below content ---->
+
+#!/bin/bash
+
+# Update package manager repositories
+sudo apt-get update
+
+# Install necessary dependencies
+sudo apt-get install -y ca-certificates curl
+
+# Create directory for Docker GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+
+# Download Docker's GPG key
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+
+# Ensure proper permissions for the key
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add Docker repository to Apt sources
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package manager repositories
+sudo apt-get update
+
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 
+
+ ----> esc ----> :wq ----> sudo chmod +x docker.sh ----> ./docker.sh
+
+docker --version
+Try to pull some default image ----> docker pull hello-world ----> You will be able to pull the image. If you are unable to pull the image. Execute the below command to provide necessary permissions ----> sudo chmod 666 /var/run/docker.sock ----> docker pull hello-world ----> You will be able to pull the image
+
+=============================
+2.1.3. Install Trivy on Jenkins Server
+=============================
+vi trivy.sh ----> Paste the below commands ---->
+#!/bin/bash
+sudo apt-get install wget apt-transport-https gnupg
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy
+
+----> esc ----> :wq ----> sudo chmod +x trivy.sh ----> ./trivy.sh ----> trivy --version
+
+=============================
+2.2. SonarQube Setup
+=============================
+Connect to the SonarQube Server
+sudo apt update
+
+Lets setup SonarQube using docker container
+vi docker.sh ----> Paste the below content ---->
+
+#!/bin/bash
+
+# Update package manager repositories
+sudo apt-get update
+
+# Install necessary dependencies
+sudo apt-get install -y ca-certificates curl
+
+# Create directory for Docker GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+
+# Download Docker's GPG key
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+
+# Ensure proper permissions for the key
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add Docker repository to Apt sources
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package manager repositories
+sudo apt-get update
+
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 
+
+ ----> esc ----> :wq ----> sudo chmod +x docker.sh ----> ./docker.sh
+
+docker --version
+sudo chmod 666 /var/run/docker.sock
+
+Lets install SonarQube ----> docker run -d --name sonar -p 9000:9000 sonarqube:lts-community
+docker images
+docker ps
+
+Access SonarQube, after opening port 9000 for SonarQube server
+Default username and Password: admin
+Set new password
+=============================
+2.3 Nexus Setup
+=============================
+Connect to the Nexus Server
+sudo apt update
+
+Lets setup Nexus using docker container
+vi docker.sh ----> Paste the below content ---->
+
+#!/bin/bash
+
+# Update package manager repositories
+sudo apt-get update
+
+# Install necessary dependencies
+sudo apt-get install -y ca-certificates curl
+
+# Create directory for Docker GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+
+# Download Docker's GPG key
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+
+# Ensure proper permissions for the key
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add Docker repository to Apt sources
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package manager repositories
+sudo apt-get update
+
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 
+
+ ----> esc ----> :wq ----> sudo chmod +x docker.sh ----> ./docker.sh
+
+docker --version
+sudo chmod 666 /var/run/docker.sock
+
+Lets install Nexus ----> docker run -d --name nexus3 -p 8081:8081 sonatype/nexus3
+docker images
+docker ps
+
+Access Nexus, after opening port 8081 for Nexus server. 
+Remember, Nexus wont come immediately in the browser. Wait for sometime and refresh the browser.
+Click on Signin ----> Username: admin, To get the password follow as below ----> docker ps ----> Copy the Nexus container ID ----> Lets go inside the container to get the password ----> docker exec -it <ContainerID> /bin/bash ----> ls ----> cd sonatype-work ----> ls ----> cd nexus3 ----> ls ----> cat admin.password ----> Copy the password (dont copy 'bash') ----> Paste in the nexus browser and click on Signin ----> Setup new password ----> Next ----> 'Check' Enable Anonymous Access ----> Next ----> Finish
+
+With this we have setup Jenkins, SonarQube, Nexus and EKS Cluster
+
+-----------
+Step 3
+-----------
+=============================
+3.1. Jenkins Plugin Installation
+=============================
+Install below plugins;
+Eclipse Temurin Installer, SonarQube scanner, Docker, Docker Commons, Docker Pipeline, Docker API, docker-build-step, Pipeline stage view, Email Extension Template, Kubernetes, Kubernetes CLI, Kubernetes Client API, Kubernetes Credentials, Config File Provider, Maven Integration, Pipeline Maven Integration, Prometheus metrics ---> install ---> You will see error while installing Prometheus plugin. Read the error message. Here we need to restart the Jenkins ---> 'Check' the box below 'Go back to the top of page' to restart the Jenkins
+
+=============================
+3.2. Tool Configuration
+=============================
+Goto the Jenkins console (since we restarted, login again to Jenkins) ---> Manage Jenkins ---> System Configuration ---> Tools ---> JDK Installation ---> Add JDK ---> Name: jdk17, 'Check' Install automatically, Click on 'Add Installer', Select 'Install from Adoptium.net', Version: jdk-17.0.11+9 ---> SonarQube Scanner Installations ---> Add 'SonarQube Scanner' ---> Name: sonar-scanner, 'Check' Install automatically, Version: Select the latest version 7.0.0.4796 ---> Maven Installations ---> Add Maven ---> Name: maven, Version: 3.6.3 ---> Docker Installations ---> Add Docker---> Name: docker, 'Check' Install automatically,  Click on 'Add Installer', Select 'Download from docker.com', Version: latest ---> Apply ---> Save
+
+==========================================
+3.3. System Configuration in Jenkins for SonarQube
+==========================================
+Lets configure the SonarQube server;
+Goto SonarQube console --- Click on 'Administration' --- Click on 'Security' --- Select 'Users' --- You can see 'Tokens' --- Click on 3 dashes icon --- A New dialogue --- Name: token, Expires in: 90days --- Generate --- You can see token in green colour. Copy it. 
+Token: squ_da60166d48de33801d5cd07b519fdf42705e4cd6
+
+Manage Jenkins --- Security --- Credentials --- Click on 'global' --- Click on 'Add Credentials' --- Kind: Secret text, Scope: Global, Secret: <Paste the token copied from SonarQube console>, ID: sonar-token, Description: sonar-token --- Create
+
+Creation of SonarQube webhooks ----> Administration ----> 'Configuration' dropdown ----> Webhooks ----> Click on 'Create' ----> Name: jenkins, URL: <JenkinsURL>:8080/sonarqube-webhook/ ---> Create
+
+Manage Jenkins ---> System ---> Scroll down to 'SonarQube servers' ---> Click on 'Add SonarQube'  ---> Name: sonar, Server URL: paste the SonarQube url. Paste only upto 9000. Dont keep / at the end, Server Authentication Token: Select the 'sonar-token' from drop down ---> Apply ---> Save
+
+===================================================
+3.4. Nexus Configuration (to publish the artifacts to the Nexus Repo)
+===================================================
+Nexus Browser ----> Browse (left pane) ----> You can see 'maven-releases' and 'maven-snapshots'. 'maven-releases' contains the artifacts that need to be deployed to Production Server and 'maven-snapshots' contains the artifacts that need to be deployed to Lower Servers i.e Dev Envi, Test Envi.
+
+Before doing the configuration of nexus, we need to edit the pom.xml file in the GitHub repo. 
+Open pom.xml ----> At the bottom, after 'dependencies' tag paste the below content, exactly in the line of 'dependencies' tag.
+
+<distributionManagement>
+  <repository>
+    <id>maven-releases</id>
+    <url>http://54.153.23.195:8081/repository/maven-releases/</url>
+  </repository>
+  <snapshotRepository>
+    <id>maven-snapshots</id>
+    <url>http://54.153.23.195:8081/repository/maven-snapshots/</url>
+  </snapshotRepository>
+</distributionManagement>
+
+
+From the Nexus browser, copy the 'maven-releases' link and paste in the above content.
+From the Nexus browser, copy the 'maven-snapshots' link and paste in the above content.
+Save the pom.xml file in the GitHub repo.
+
+Lets configure Nexus in the Jenkins;
+Manage Jenkins --- System Configuration --- Managed Files --- Add a new config  --- Type: Global Maven Settings.xml, Scroll down to ID: maven-setting --- Next --- Scroll down to 'server' tag --- Just above 'another sample' you will see -->, remove that and paste it above the 'server' tag. You can see everything changed to green --- Under 'server' tag, you will see 'deployment repo', remove this and type 'maven-releases' (dont keep single quotes), change the username as 'admin', change the password as 'kastro'.
+Copy the entire edited content and paste below it. Now lets do the same for maven-snapshots;
+in the place of 'maven-releases' provide 'maven-snapshots'. No need to change the username and password --- Submit
+
+======================================
+3.4.1. Nexus configuration for Jenkins Pipeline
+======================================
+In the Nexus stage of pipeline, to generate the pipeline syntax, follow as below;
+Open Jenkins Job --- Pipeline Syntax --- Sample step: withMaven: provide Maven environment, Maven: maven, JDK: jdk17, Maven Settings Config: use system default settings or file path, Global maven settings config: MyGlobalSettings --- Generate pipeline syntax --- Copy the syntax and paste in the pipeline script 
+
+======================================
+3.5. Docker configuration for Jenkins Pipeline
+======================================
+In the Docker Build & Tag Docker Image stage of pipeline, to generate the pipeline syntax, follow as below;
+Open Jenkins Job --- Pipeline Syntax --- Sample step: withDockerRegistry: Sets up Docker Registry Endpoint, Docker registry URL: (since its a public docker registry, we dont have provide the docker hub URL) --- Registry credentials: Add: Jenkins: Domain: Global Credentials, Kind: Username with password, Scope: Global, Username: <DockerHubUserName>, Password: <DockerHubPassword>, ID: docker-cred, Description: docker-cred --- Add --- Registry credentials: Select 'docker-cred' from dropdown, Docker installation: docker --- Generate pipeline syntax --- Copy the syntax and paste in the pipeline script.
+
+==============================
+Lets create a mail notification;
+==============================
+Goto Gmail ---> Click on Icon on top right ---> Click on 'Your google account' ---> 'Security' (left pane) --->Make sure 2 step verification is on.
+
+Goto Gmail ---> Click on Icon on top right ---> Click on 'Your google account' ---> in search box at top, search for 'App  Passwords' and click on it, Enter password of gmail ---> Next ---> App name: jenkins ---> Create ---> You can see the password (ex: ryombgsdlprqxoje) ---> Copy it ---> Make sure to remove the spaces in the password. Lets configure this password in Jenkins.
+
+Manage Jenkins ---> System ---> Scroll down to 'Email Notification' ---> SMTP Server: smtp.gmail.com ---> Click on 'Advanced'  ---> 'Check' Use SMTP Authentication, Username: <ProvideEmailID>, Password: <PasteThePasswordToken>, 'Check' Use SSL, SMTP Port: 465, Reply-to-email: <ProvideEmail>, Charset: UTF-8,, Check 'Test configuration by sending test e-mail', Test Email Recepient: <provide-email-id>, Click on 'Test Configuration' ---> You can see 'email sent' ---> Goto email and check for test email
+
+Manage Jenkins* ---> System ---> Scroll up to 'Extended Email Notification' ---> SMTP Server: smtp.gmail.com ---> SMTP Port: 465, Click on 'Advanced'  ---> Credentials: Select 'email creds' from drop down, 'Check' Use SSL and Use OAuth 2.0, Default content type: HTML
+
+Goto the Jenkins console ---> Manage Jenkins ---> Security ---> Credentials ---> Under 'Stores scoped to Jenkins', Click on 'Global' under 'Domains' ---> Add credentials ---> A dia ---> Kind: Username with Password, Scope: Global, Username: <ProvideEmail ID>, Password: <PasteTheToken>, ID: mail-cred, Description: mail-cred, 'Check' Use SSL ---> Create ---> You can see the email credentials got created.
+
+Manage Jenkins* ---> System ---> Scroll down to 'Extended Email Notification' ---> SMTP Server: smtp.gmail.com ---> SMTP Port: 465, Click on 'Advanced'  ---> Credentials: Select 'mail-cred' from drop down, 'Check' Use SSL and Use OAuth 2.0, Default content type: HTML
+
+Lets* make another configuration to get an email when build fails/success ---> Goto 'Default Triggers' drop down (If you cannot find this, try searching using control+f ---> 'Check' Always, Failure-Any, Success ---> Apply ---> Save 
+
+=============================
+3.6. Job Creation
+=============================
+Create a pipeline job
+______________________________
+Pipeline Script (without K8S Stage)
+_____________________________
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        maven 'maven'
+    }
+
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+        DOCKER_IMAGE = "kastrov/ecommerce:latest"
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git 'https://github.com/KastroVKiran/Ecommerce-App-Kastro.git'
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh "mvn test -DskipTests=true"
+            }
+        }
+
+        stage('File System Scan') {
+            steps {
+                sh "trivy fs --format table -o trivy-fs-report.html ."
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''
+                    $SCANNER_HOME/bin/sonar-scanner \
+                    -Dsonar.projectName=ECommerce \
+                    -Dsonar.projectKey=ECommerce \
+                    -Dsonar.java.binaries=target/classes
+                    '''
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh "mvn package -DskipTests=true"
+            }
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                withMaven(globalMavenSettingsConfig: 'maven-setting', jdk: 'jdk17', maven: 'maven') {
+                    sh "mvn deploy -DskipTests=true"
+                }
+            }
+        }
+
+        stage('Docker Build & Tag') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                    }
+                }
+            }
+        }
+
+        stage('Docker Image Scan') {
+            steps {
+                sh "trivy image --format table -o trivy-image-report.html ${DOCKER_IMAGE}"
+                archiveArtifacts artifacts: 'trivy-image-report.html', fingerprint: true
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker push ${DOCKER_IMAGE}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Container') {
+            steps {
+                script {
+                    sh "docker stop ecommerce-container || true && docker rm ecommerce-container || true"
+                    sh "docker run -d --name ecommerce-container -p 8083:8080 ${DOCKER_IMAGE}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                def jobName = env.JOB_NAME
+                def buildNumber = env.BUILD_NUMBER
+                def pipelineStatus = currentBuild.result ?: 'SUCCESS'
+                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+
+                def body = """
+                <html>
+                <body>
+                <div style="border: 4px solid ${bannerColor}; padding: 10px;">
+                <h2>${jobName} - Build ${buildNumber}</h2>
+                <div style="background-color: ${bannerColor}; padding: 10px;">
+                <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                </div>
+                <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                </div>
+                </body>
+                </html>
+                """
+
+                emailext (
+                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                    body: body,
+                    to: 'kastrokiran@gmail.com',
+                    from: 'jenkins@example.com',
+                    replyTo: 'jenkins@example.com',
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-image-report.html'
+                )
+            }
+        }
+    }
+}
+
+---------------------------------------
+Deploying to EKS Cluster
+---------------------------------------
+
+
+=============================
+5 Create Service Account, Role & Assign that role, And create a secret for Service Account and generate a Token
+=============================
+Here we will create all the resources inside a namespace called 'webapps' which is a recommended approach in the realtime scenario
+(a) Creating Service Account 
+vi svc.yml ---->
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: webapps
+
+Lets create a namespace ---> kubectl create namespace webapps ---> kubectl apply -f svc.yml
+
+(b) Create Role
+vi role.yml ---->
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-role
+  namespace: webapps
+rules:
+  - apiGroups:
+        - ""
+        - apps
+        - autoscaling
+        - batch
+        - extensions
+        - policy
+        - rbac.authorization.k8s.io
+    resources:
+      - pods
+      - componentstatuses
+      - configmaps
+      - daemonsets
+      - deployments
+      - events
+      - endpoints
+      - horizontalpodautoscalers
+      - ingress
+      - jobs
+      - limitranges
+      - namespaces
+      - nodes
+      - pods
+      - persistentvolumes
+      - persistentvolumeclaims
+      - resourcequotas
+      - replicasets
+      - replicationcontrollers
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+ ---> kubectl apply -f role.yml
+
+(c) Bind the role to service account
+vi bind.yml ---->
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-rolebinding
+  namespace: webapps 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: app-role 
+subjects:
+- namespace: webapps 
+  kind: ServiceAccount
+  name: jenkins 
+
+ ---> kubectl apply -f bind.yml
+
+(d) In order to use the service account for deployment, we need to create token for the service account which will be used as authentication
+vi secret.yml --- Paste the below content; (reference URL for secret: https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#:~:text=To%20create%20a%20non%2Dexpiring,with%20that%20generated%20token%20data.)
+
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: mysecretname
+  annotations:
+    kubernetes.io/service-account.name: jenkins #Here my service account name is 'jenkins' based on the above created yml files
+
+--- esc --- :wq --- kubectl create apply -f secret.yml -n <NameSpaceName i.e webapps> (MODIFIED COMMAND FOR DEVOPS EXAM APP: kubectl apply -f secret.yml -n webapps) --- Now the secret will get created inside the namespace --- To get the token --- kubectl describe secret <SecretName i.e mysecretname> -n <NameSpaceName i.e webapps> (MODIFIED COMMAND FOR DEVOPS EXAM APP: kubectl describe secret mysecretname -n webapps) --- You can see the token. Copy and paste in notepad
+We will configure this in Jenkins in sometime
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6IkpEUlR3YmtVekdrMVhmRnUyNXBhejdkcS12OENCaGZBYTZBN2YtVTZ4SWMifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJ3ZWJhcHBzIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6Im15c2VjcmV0bmFtZSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJqZW5raW5zIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiOWM3OWExMTUtNWQ4Mi00OWQyLTlhY2YtYWFjNGM2OTU4NmE4Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OndlYmFwcHM6amVua2lucyJ9.YNgJ26edGSpEaYt4MPjNOCwCaOKext3G_TJmbYutUDSMRqU5tf4kPdKF_QrIdf0bExZoYKbXzRjZzeMinPIlOg06z4NU8RJTLAuBp2guOrFKwNk2zlgdixvm_wUDDT8xGMNGiMuZTO8nRj8oD8PtOXccNpdzMXqB0GnwnKrf16r0ZPhAchvberF9hcglnmLNQFBUUf1bC9DjKtN7HZS7YedgLzkzly85Xg0ekmLBwSkalzoaogpaAAfdwZqkeY0c7otE5QD0JjgPoKvlYuxoUtol_RFAbLmM529Jg5H9GNh3m49c8fFDGvrjbMT4QXm69arGe1B6dJghy25NZMCR-Q
+
+Lets create CD pipeline
+Dashboard --- Manage Jenkins --- Security --- Credentials --- Global credentials (unrestricted) --- Kind: secret text --- Scope: global --- Secret: Paste the token generated above --- ID: k8-token, Decription: k8-token --- Create
+
+Pipeline syntax --- Sample step: withKubeCredentials: Configure Kubernetes CLI (kubectl) --- Credentials: k8-token --- Kubernetes Server Endpoint: To get this endpoint, go to EKS Cluster --- Overview tab --- Details --- Copy the API server endpoint and paste it --- Cluster name: <GiveTheNameAsInEKSConsole>, Context name: <leaveBlank>, Namespace: <NameSpaceName i.e webapps>, --- Generate pipeline script --- Copy and paste in the 'Deploy To Kubernetes' and 'verify Deployment' stages in the below pipeline script
+
+___________________________________________________
+Ecommerce App - Successful (with K8S Stage)
+___________________________________________________
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        maven 'maven'
+    }
+
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+        DOCKER_IMAGE = "kastrov/ecommerce:latest"
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git 'https://github.com/KastroVKiran/Ecommerce-App-Kastro.git'
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh "mvn test -DskipTests=true"
+            }
+        }
+
+        stage('File System Scan') {
+            steps {
+                sh "trivy fs --format table -o trivy-fs-report.html ."
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''
+                    $SCANNER_HOME/bin/sonar-scanner \
+                    -Dsonar.projectName=ECommerce \
+                    -Dsonar.projectKey=ECommerce \
+                    -Dsonar.java.binaries=target/classes
+                    '''
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh "mvn package -DskipTests=true"
+            }
+        }
+
+        stage('Publish to Nexus') {
+            steps {
+                withMaven(globalMavenSettingsConfig: 'maven-setting', jdk: 'jdk17', maven: 'maven') {
+                    sh "mvn deploy -DskipTests=true"
+                }
+            }
+        }
+
+        stage('Docker Build & Tag') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                    }
+                }
+            }
+        }
+
+        stage('Docker Image Scan') {
+            steps {
+                sh "trivy image --format table -o trivy-image-report.html ${DOCKER_IMAGE}"
+                archiveArtifacts artifacts: 'trivy-image-report.html', fingerprint: true
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh "docker push ${DOCKER_IMAGE}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Container') {
+            steps {
+                script {
+                    sh "docker stop ecommerce-container || true && docker rm ecommerce-container || true"
+                    sh "docker run -d --name ecommerce-container -p 8083:8080 ${DOCKER_IMAGE}"
+                }
+            }
+        }
+
+        stage('Deploy To Kubernetes') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://46554B7DB92D006C51D74C3BF7A32464.sk1.us-west-1.eks.amazonaws.com') {
+                    sh "kubectl apply -f deployment-service.yaml -n webapps"
+                }
+            }
+        }
+
+        stage('Verify the Deployment') {
+            steps {
+                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://46554B7DB92D006C51D74C3BF7A32464.sk1.us-west-1.eks.amazonaws.com') {
+                    sh "kubectl get pods -n webapps"
+                    sh "kubectl get svc -n webapps"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                def jobName = env.JOB_NAME
+                def buildNumber = env.BUILD_NUMBER
+                def pipelineStatus = currentBuild.result ?: 'SUCCESS'
+                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+
+                def body = """
+                <html>
+                <body>
+                <div style="border: 4px solid ${bannerColor}; padding: 10px;">
+                <h2>${jobName} - Build ${buildNumber}</h2>
+                <div style="background-color: ${bannerColor}; padding: 10px;">
+                <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                </div>
+                <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                </div>
+                </body>
+                </html>
+                """
+
+                emailext (
+                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                    body: body,
+                    to: 'kastrokiran@gmail.com',
+                    from: 'jenkins@example.com',
+                    replyTo: 'jenkins@example.com',
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'trivy-image-report.html'
+                )
+            }
+        }
+    }
+}
+
+Load Balancer Provisioning Delay
+AWS ALB (Application Load Balancer) takes time to provision (typically 2-5 minutes). 
+Check:
+kubectl get svc devopsexamapp-service -n webapps -w
+Wait until you see an external DNS name assigned (it will show as <pending> initially).
