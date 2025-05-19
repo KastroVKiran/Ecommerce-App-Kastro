@@ -1,15 +1,5 @@
 # Ecommerce Application
 
-### Take a look at this Application
-url: https://swapnilbamble1438.github.io/EcommerceApplication/
-
-### It is Java J2EE Application. Build in Eclipse IDE using Maven.
-## It is an Online Electronic Shopping Application. 
-
-### Application Features:
-- It shows the working example of how Online Shopping Websites works.
--   Where User can add product to cart, user can register,login,logout or buy product. and Admin can Add new Products to items list and can manage the Customers.
-
 ### Technology used in this Project: 
 - i) Java: all Backend logic has been written in java.
 - ii) HTML,CSS and Bootstrap: designing page layout.
@@ -18,56 +8,7 @@ url: https://swapnilbamble1438.github.io/EcommerceApplication/
 - v) Tomcat: project will be run over the tomcat server.
 - vi) Maven: Maven is used for getting required jar files.
 
-### Software And Tools Required:
-- Java JDK 8+
-- Eclipse EE
-- Apache Maven
-- Tomcat v8.0+
-- SQLite Tools (Online or Offline Tool)
-
-### Steps To Import And Run The Project in Eclipse EE
-- In Eclipse
-- Click on File
-- Select Import
-- Select Projects from Git(with smart import) -> Next
-- Select Clone URI -> Next
-- In URI paste this url: https://github.com/swapnilbamble1438/EcommerceApp.git
-  -> Next
--  Now in Local Destination
-
--  proceed -> Next
-
-- select -> Search for nested projects
-- and select -> Detect and configure project natures options
-
-            Now only select EcommerceApp\EcommerceApp
-            -> Finish
-  
--  If everything goes right Project will get successfully imported
--  Now wait for few seconds for getting things properly loaded
--  Now open Project > open com.conn package > open DBConnect.java file.
-   Now make some changes in this file,
-   change Database file location/(mydatabase.db) file location/
-   change "conn" value,
-   like if it is:
-   
-   conn = DriverManager.getConnection("jdbc:sqlite:C:/Users/Swapnil/eclipse- 
-   workspace/Online Electronic Shopping/mydatabase.db");
-   
-   change the "conn" value/path according to your mydatabase.db file location.
-
-                 mydatabase.db file will get just inside Project folder only,
-                 Open Project folder you will get mydatabase.db file present.
-   
--  After doing changes save the DBConnect.java file.   
--  Right Click On Project > Run As > Run On Server > Select Tomcat V8.0+ > Next > Finish
--  Now Website will get open, if not, then try opening it manually in Browser,
-   Type Url: http://localhost:8082/EcommerceApp
--  Note: In Url put Port according to your server.
-  
-
-
-### Some Screenshots of this Project:
+### Screenshots of this Project:
 ![Home Page](a1.png)
 ==================================================================================================================================================================
 ![Home Page](a1ii.png)
@@ -81,10 +22,6 @@ url: https://swapnilbamble1438.github.io/EcommerceApplication/
 ![Product Page](a5.png)
 ==================================================================================================================================================================
 ![Cart Page](a6.png)
-==================================================================================================================================================================
-![Customer Login Page](a7.png)
-==================================================================================================================================================================
-![Admin Login Page](a8.png)
 ==================================================================================================================================================================
 ![About Page](a9.png)
 ==================================================================================================================================================================
@@ -262,6 +199,6 @@ url: https://swapnilbamble1438.github.io/EcommerceApplication/
    
 
 
-### Project Creator: Swapnil Bamble
+### Deployed by: Kastro Kiran V
 
 
