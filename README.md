@@ -1,30 +1,32 @@
-# Ecommerce Application
+# 🚀 E-Commerce Application Deployment (DevOps Project)
 
-### Technology used in this Project: 
-- i) Java: all Backend logic has been written in java.
-- ii) HTML,CSS and Bootstrap: designing page layout.
-- iii) JSP & Javascript: all the front end logic has been written in jsp and javascript. 
-- iv) SQLite: SQLite database has been used as database. 
-- v) Tomcat: project will be run over the tomcat server.
-- vi) Maven: Maven is used for getting required jar files.
+Welcome to this repository!  
+Here you will learn the **end-to-end deployment of an E-Commerce Application** using DevOps tools and practices.
 
-### Screenshots of this Project:
-![Home Page](a1.png)
-==================================================================================================================================================================
-![Home Page](a1ii.png)
-==================================================================================================================================================================
-![Category Page](a2.png)
-==================================================================================================================================================================
-![Products Page](a3.png)
-==================================================================================================================================================================
-![Products Page](a4.png)
-==================================================================================================================================================================
-![Product Page](a5.png)
-==================================================================================================================================================================
-![Cart Page](a6.png)
-==================================================================================================================================================================
-![About Page](a9.png)
-==================================================================================================================================================================
+---
+
+## 📺 Watch the Full Deployment Tutorial
+[![Watch Now](https://img.shields.io/badge/Watch_on-YouTube-red?logo=youtube&logoColor=white)](https://youtu.be/3TE_zGcHTFA)
+
+---
+
+## 🤝 Connect With Me
+[![LinkedIn](https://img.shields.io/badge/Connect-Kastro%20Kiran-blue?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kastro-kiran/)
+
+---
+
+## 💬 Join the DevOps Community
+[![WhatsApp Group](https://img.shields.io/badge/Join-WhatsApp%20Group-green?logo=whatsapp&logoColor=white)](https://chat.whatsapp.com/EGw6ZlwUHZc82cA0vXFnwm)
+
+---
+
+### ⚡ What you’ll find here:
+- Complete CI/CD pipeline for E-Commerce Application  
+- Kubernetes, Docker, Jenkins, and monitoring setup  
+- Hands-on DevOps best practices  
+
+Stay tuned, contribute, and let’s grow together in the DevOps journey! 🌍  
+
 
 ### You can also use MySQL as Database
 
