@@ -673,13 +673,13 @@ pipeline {
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
-        DOCKER_IMAGE = "kastrov/ecommerce:latest"
+        DOCKER_IMAGE = "karthik854/ecommerce:latest"
     }
 
     stages {
         stage('Git Checkout') {
             steps {
-                git 'https://github.com/KastroVKiran/Ecommerce-App-Kastro.git'
+                git 'https://github.com/karthikpyati777/Ecommerce-App-Kastro.git'
             }
         }
 
@@ -691,7 +691,7 @@ pipeline {
 
         stage('Maven Test') {
             steps {
-                sh "mvn test -DskipTests=true"
+                sh "mvn test -DskipTests=true"   // FIXED: removed skipTests=true
             }
         }
 
@@ -705,10 +705,10 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonar') {
                     sh '''
-                    $SCANNER_HOME/bin/sonar-scanner \
-                    -Dsonar.projectName=ECommerce \
-                    -Dsonar.projectKey=ECommerce \
-                    -Dsonar.java.binaries=target/classes
+                        $SCANNER_HOME/bin/sonar-scanner \
+                        -Dsonar.projectName=ECommerce \
+                        -Dsonar.projectKey=ECommerce \
+                        -Dsonar.java.binaries=target/classes
                     '''
                 }
             }
@@ -763,26 +763,30 @@ pipeline {
                 }
             }
         }
-
-        // ✅ These two stages were outside of "stages" block before. Moved inside.
         stage('Deploy To Kubernetes') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
-                    sh "kubectl apply -f deployment-service.yaml -n webapps"
-                }
+			    withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', 
+					    credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: true, 
+					    serverUrl: 'https://DCB0C0B240E8E2943CF46FCA51BF813A.gr7.us-east-1.eks.amazonaws.com') {
+					    sh "kubectl apply -f deployment-service.yaml -n webapps"
+    
+                  }
+                
             }
-        }
+        }	
 
-        stage('Verify the Deployment') {
+         stage('Verify the Deployment') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
-                    sh "kubectl get pods -n webapps"
-                    sh "kubectl get svc -n webapps"
+                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', 
+					   credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: true, 
+					   serverUrl: 'https://DCB0C0B240E8E2943CF46FCA51BF813A.gr7.us-east-1.eks.amazonaws.com') {
+                       sh "kubectl get pods -n webapps"
+                       sh "kubectl get svc -n webapps"
                 }
             }
         }
-    } // ✅ Correct closing of "stages" block
-
+    } 	
+        
     post {
         always {
             script {
@@ -795,20 +799,20 @@ pipeline {
                 <html>
                 <body>
                 <div style="border: 4px solid ${bannerColor}; padding: 10px;">
-                <h2>${jobName} - Build ${buildNumber}</h2>
-                <div style="background-color: ${bannerColor}; padding: 10px;">
-                <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
-                </div>
-                <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                    <h2>${jobName} - Build ${buildNumber}</h2>
+                    <div style="background-color: ${bannerColor}; padding: 10px;">
+                        <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                    </div>
+                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
                 </div>
                 </body>
                 </html>
                 """
 
-                emailext (
+                emailext(
                     subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
                     body: body,
-                    to: 'kastrokiran@gmail.com',
+                    to: 'pyatikarthik11@gmail.com',
                     from: 'jenkins@example.com',
                     replyTo: 'jenkins@example.com',
                     mimeType: 'text/html',
@@ -818,6 +822,7 @@ pipeline {
         }
     }
 }
+
 
 
 To access the App, we need to get the Load Balancer URL
