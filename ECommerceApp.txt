@@ -821,4 +821,5 @@ pipeline {
 
 
 To access the App, we need to get the Load Balancer URL
-kuetl get all -n webapps
+kubectl get all -n webapps
+
